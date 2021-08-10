@@ -188,7 +188,9 @@ def acs(r):
     saml_client = _get_saml_client(get_current_domain(r))
     resp = r.POST.get("SAMLResponse", None)
     next_url = r.session.get("login_next_url", get_default_next_url())
-
+     # If relayState params is passed, use that else consider the previous 'next_url'
+    next_url = r.POST.get('RelayState', next_url)
+    
     if not resp:
         return HttpResponseRedirect(
             get_reverse([denied, "denied", "django_saml2_auth:denied"])
@@ -270,6 +272,7 @@ def signin(r):
     except:
         import urllib.parse as _urlparse
         from urllib.parse import unquote
+
     next_url = r.GET.get("next", get_default_next_url())
 
     try:
@@ -311,9 +314,11 @@ def signin(r):
         .get("binding", BINDING_HTTP_REDIRECT)
     )
 
+    r.session['login_next_url'] = next_url
+
     saml_client = _get_saml_client(get_current_domain(r))
     _, info = saml_client.prepare_for_authenticate(
-        idp_entity_id, relay_state=relay_state, binding=binding
+        idp_entity_id, relay_state=next_url, binding=binding
     )
 
     if binding == BINDING_HTTP_REDIRECT:
